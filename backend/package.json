@@ -1,0 +1,18 @@
+{
+  "name": "weight-tracker-backend",
+  "version": "1.0.0",
+  "description": "Backend API Suivi de Poids - TP CI/CD",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js",
+    "test": "jest --detectOpenHandles --forceExit"
+  },
+  "dependencies": {
+    "cors": "^2.8.5",
+    "express": "^4.18.2"
+  },
+  "devDependencies": {
+    "jest": "^29.7.0",
+    "supertest": "^6.3.3"
+  }
+}

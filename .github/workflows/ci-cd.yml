@@ -1,0 +1,124 @@
+name: CI/CD Pipeline
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+env:
+  DOCKER_USERNAME: ${{ secrets.DOCKER_USERNAME }}
+  DOCKER_PASSWORD: ${{ secrets.DOCKER_PASSWORD }}
+  VM_HOST: ${{ secrets.VM_HOST }}
+  VM_USER: ${{ secrets.VM_USER }}
+  VM_SSH_KEY: ${{ secrets.VM_SSH_KEY }}
+
+jobs:
+  # ========================================
+  # 1) Installation des dépendances + Tests
+  # ========================================
+  test:
+    name: "Tests"
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '18'
+
+      - name: Install dependencies
+        working-directory: ./backend
+        run: npm ci
+
+      - name: Run tests
+        working-directory: ./backend
+        run: npm test
+
+  # ========================================
+  # 2) Build Docker + Push images
+  # ========================================
+  build:
+    name: "Build & Push Docker"
+    runs-on: ubuntu-latest
+    needs: test
+    if: github.ref == 'refs/heads/main'
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Login Docker Hub
+        uses: docker/login-action@v3
+        with:
+          username: ${{ env.DOCKER_USERNAME }}
+          password: ${{ env.DOCKER_PASSWORD }}
+
+      - name: Build & Push Backend
+        uses: docker/build-push-action@v5
+        with:
+          context: ./backend
+          push: true
+          tags: |
+            ${{ env.DOCKER_USERNAME }}/taskmanager-backend:latest
+            ${{ env.DOCKER_USERNAME }}/taskmanager-backend:${{ github.sha }}
+
+      - name: Build & Push Frontend
+        uses: docker/build-push-action@v5
+        with:
+          context: ./frontend
+          push: true
+          tags: |
+            ${{ env.DOCKER_USERNAME }}/taskmanager-frontend:latest
+            ${{ env.DOCKER_USERNAME }}/taskmanager-frontend:${{ github.sha }}
+
+  # ========================================
+  # 3) Déploiement sur la VM (SSH) + K8s
+  # ========================================
+  deploy:
+    name: "Deploy to VM"
+    runs-on: ubuntu-latest
+    needs: build
+    if: github.ref == 'refs/heads/main'
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup SSH
+        run: |
+          mkdir -p ~/.ssh
+          echo "${{ env.VM_SSH_KEY }}" > ~/.ssh/id_rsa
+          chmod 600 ~/.ssh/id_rsa
+          ssh-keyscan -H ${{ env.VM_HOST }} >> ~/.ssh/known_hosts
+
+      - name: Copy K8s manifests
+        run: |
+          scp -r k8s/ ${{ env.VM_USER }}@${{ env.VM_HOST }}:~/k8s/
+
+      - name: Deploy on Kubernetes
+        run: |
+          ssh ${{ env.VM_USER }}@${{ env.VM_HOST }} << 'EOF'
+            set -e
+
+            echo "--- Pulling latest images ---"
+            docker pull ${{ env.DOCKER_USERNAME }}/taskmanager-backend:latest
+            docker pull ${{ env.DOCKER_USERNAME }}/taskmanager-frontend:latest
+
+            echo "--- Applying K8s manifests ---"
+            kubectl apply -f ~/k8s/namespace.yaml
+            kubectl apply -f ~/k8s/configmap.yaml
+            kubectl apply -f ~/k8s/backend.yaml
+            kubectl apply -f ~/k8s/frontend.yaml
+
+            echo "--- Rolling restart ---"
+            kubectl rollout restart deployment/backend -n taskmanager
+            kubectl rollout restart deployment/frontend -n taskmanager
+
+            echo "--- Waiting for rollout ---"
+            kubectl rollout status deployment/backend -n taskmanager --timeout=120s
+            kubectl rollout status deployment/frontend -n taskmanager --timeout=120s
+
+            echo "--- Done ---"
+            kubectl get pods -n taskmanager
+          EOF

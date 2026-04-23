@@ -1,0 +1,488 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Mon poids</title>
+  <link href="https://fonts.googleapis.com/css2?family=DM+Serif+Display&family=Source+Sans+3:wght@300;400;600&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --cream: #faf8f4;
+      --warm: #f3efe8;
+      --sand: #e8e0d4;
+      --clay: #c4b5a2;
+      --bark: #8a7a66;
+      --earth: #5c4f3d;
+      --ink: #2c2518;
+      --terracotta: #c4653a;
+      --terra-light: #f7ebe4;
+      --sage: #6b8f71;
+      --sage-light: #e8f0e9;
+      --radius: 6px;
+    }
+
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+
+    body {
+      font-family: 'Source Sans 3', Georgia, serif;
+      background: var(--cream);
+      color: var(--ink);
+      min-height: 100vh;
+      line-height: 1.6;
+      -webkit-font-smoothing: antialiased;
+    }
+
+    .page {
+      max-width: 640px;
+      margin: 0 auto;
+      padding: 3rem 1.5rem 4rem;
+    }
+
+    /* Header */
+    header {
+      margin-bottom: 2.5rem;
+      border-bottom: 1px solid var(--sand);
+      padding-bottom: 1.5rem;
+    }
+
+    header h1 {
+      font-family: 'DM Serif Display', Georgia, serif;
+      font-size: 2.2rem;
+      font-weight: 400;
+      color: var(--ink);
+      letter-spacing: -0.02em;
+      margin-bottom: 0.3rem;
+    }
+
+    header p {
+      font-size: 0.95rem;
+      color: var(--bark);
+      font-weight: 300;
+    }
+
+    .status-pill {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      margin-top: 0.6rem;
+      font-size: 0.78rem;
+      color: var(--bark);
+      background: var(--warm);
+      padding: 4px 10px;
+      border-radius: 20px;
+    }
+
+    .status-pill::before {
+      content: '';
+      width: 6px; height: 6px;
+      border-radius: 50%;
+      background: var(--clay);
+    }
+
+    .status-pill.ok::before { background: var(--sage); }
+
+    /* Form */
+    .add-section {
+      background: var(--warm);
+      border: 1px solid var(--sand);
+      border-radius: var(--radius);
+      padding: 1.2rem 1.4rem;
+      margin-bottom: 2rem;
+    }
+
+    .add-section label {
+      display: block;
+      font-size: 0.78rem;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      color: var(--bark);
+      margin-bottom: 0.4rem;
+      font-weight: 600;
+    }
+
+    .form-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr auto;
+      gap: 0.7rem;
+      align-items: end;
+    }
+
+    .field input {
+      width: 100%;
+      padding: 0.55rem 0.75rem;
+      border: 1px solid var(--sand);
+      border-radius: var(--radius);
+      background: var(--cream);
+      color: var(--ink);
+      font-family: inherit;
+      font-size: 0.95rem;
+      outline: none;
+      transition: border-color 0.2s;
+    }
+
+    .field input:focus {
+      border-color: var(--terracotta);
+    }
+
+    .btn-add {
+      padding: 0.55rem 1.1rem;
+      background: var(--earth);
+      color: var(--cream);
+      border: none;
+      border-radius: var(--radius);
+      font-family: inherit;
+      font-size: 0.9rem;
+      font-weight: 600;
+      cursor: pointer;
+      transition: background 0.2s;
+      white-space: nowrap;
+    }
+
+    .btn-add:hover { background: var(--ink); }
+
+    /* Table */
+    .table-section h2 {
+      font-family: 'DM Serif Display', Georgia, serif;
+      font-size: 1.25rem;
+      font-weight: 400;
+      margin-bottom: 0.8rem;
+      color: var(--earth);
+    }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+    }
+
+    thead th {
+      text-align: left;
+      padding: 0.6rem 0.75rem;
+      font-size: 0.72rem;
+      text-transform: uppercase;
+      letter-spacing: 0.1em;
+      color: var(--bark);
+      font-weight: 600;
+      border-bottom: 2px solid var(--earth);
+    }
+
+    thead th:last-child { text-align: right; }
+    thead th:nth-child(2), thead th:nth-child(3) { text-align: center; }
+
+    tbody tr {
+      border-bottom: 1px solid var(--sand);
+      transition: background 0.15s;
+    }
+
+    tbody tr:hover { background: var(--warm); }
+
+    tbody td {
+      padding: 0.7rem 0.75rem;
+      font-size: 0.92rem;
+      vertical-align: middle;
+    }
+
+    tbody td:nth-child(2) { text-align: center; }
+    tbody td:nth-child(3) { text-align: center; }
+    tbody td:last-child { text-align: right; }
+
+    .date-cell {
+      color: var(--earth);
+    }
+
+    .weight-cell {
+      font-weight: 600;
+      font-size: 1rem;
+      color: var(--ink);
+      font-variant-numeric: tabular-nums;
+    }
+
+    .diff {
+      font-size: 0.8rem;
+      font-weight: 600;
+      padding: 2px 8px;
+      border-radius: 20px;
+      display: inline-block;
+    }
+    .diff-down { color: var(--sage); background: var(--sage-light); }
+    .diff-up { color: var(--terracotta); background: var(--terra-light); }
+    .diff-flat { color: var(--clay); }
+
+    /* Action buttons */
+    .actions { display: flex; gap: 0.3rem; justify-content: flex-end; }
+
+    .btn-icon {
+      padding: 0.3rem 0.55rem;
+      border: 1px solid var(--sand);
+      border-radius: var(--radius);
+      background: var(--cream);
+      color: var(--bark);
+      font-family: inherit;
+      font-size: 0.78rem;
+      cursor: pointer;
+      transition: all 0.15s;
+    }
+
+    .btn-icon:hover {
+      border-color: var(--bark);
+      color: var(--earth);
+    }
+
+    .btn-icon.delete:hover {
+      border-color: var(--terracotta);
+      color: var(--terracotta);
+      background: var(--terra-light);
+    }
+
+    /* Edit inline */
+    .edit-input {
+      width: 100%;
+      padding: 0.35rem 0.5rem;
+      border: 1px solid var(--terracotta);
+      border-radius: var(--radius);
+      background: #fff;
+      color: var(--ink);
+      font-family: inherit;
+      font-size: 0.9rem;
+      outline: none;
+    }
+
+    .btn-save {
+      padding: 0.3rem 0.6rem;
+      background: var(--earth);
+      color: var(--cream);
+      border: none;
+      border-radius: var(--radius);
+      font-family: inherit;
+      font-size: 0.78rem;
+      cursor: pointer;
+    }
+
+    .btn-save:hover { background: var(--ink); }
+
+    .btn-cancel {
+      padding: 0.3rem 0.6rem;
+      background: none;
+      color: var(--bark);
+      border: 1px solid var(--sand);
+      border-radius: var(--radius);
+      font-family: inherit;
+      font-size: 0.78rem;
+      cursor: pointer;
+    }
+
+    /* Empty state */
+    .empty-state {
+      text-align: center;
+      padding: 3rem 1rem;
+      color: var(--bark);
+    }
+
+    .empty-state .icon {
+      font-size: 2.5rem;
+      margin-bottom: 0.8rem;
+      opacity: 0.4;
+    }
+
+    .empty-state p {
+      font-size: 0.95rem;
+      font-weight: 300;
+    }
+
+    .empty-state p strong {
+      font-weight: 600;
+      color: var(--earth);
+    }
+
+    /* Responsive */
+    @media (max-width: 520px) {
+      .form-grid {
+        grid-template-columns: 1fr 1fr;
+      }
+      .form-grid .btn-add {
+        grid-column: 1 / -1;
+      }
+      header h1 { font-size: 1.8rem; }
+      .page { padding: 2rem 1rem 3rem; }
+    }
+
+    /* Fade in */
+    @keyframes fadeUp {
+      from { opacity: 0; transform: translateY(8px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+    .add-section, .table-section {
+      animation: fadeUp 0.4s ease both;
+    }
+    .table-section { animation-delay: 0.1s; }
+  </style>
+</head>
+<body>
+  <div class="page">
+
+    <header>
+      <h1>Mon poids</h1>
+      <p>Un suivi simple, semaine apr&egrave;s semaine.</p>
+      <div class="status-pill" id="statusPill">
+        <span id="statusText">Connexion...</span>
+      </div>
+    </header>
+
+    <section class="add-section">
+      <div class="form-grid">
+        <div class="field">
+          <label for="weightInput">Poids (kg)</label>
+          <input type="number" id="weightInput" placeholder="72.5" step="0.1" min="0" />
+        </div>
+        <div class="field">
+          <label for="dateInput">Date</label>
+          <input type="date" id="dateInput" />
+        </div>
+        <button class="btn-add" onclick="addWeight()">Ajouter</button>
+      </div>
+    </section>
+
+    <section class="table-section">
+      <h2>Historique</h2>
+      <div id="content">
+        <div class="empty-state">
+          <div class="icon">&#9878;</div>
+          <p>Aucun enregistrement pour le moment.<br>Ajoutez votre <strong>premier poids</strong> ci-dessus.</p>
+        </div>
+      </div>
+    </section>
+
+  </div>
+
+  <script>
+    const API = '/api';
+    let editingId = null;
+
+    document.getElementById('dateInput').value = new Date().toISOString().split('T')[0];
+
+    async function checkHealth() {
+      const pill = document.getElementById('statusPill');
+      const text = document.getElementById('statusText');
+      try {
+        const r = await fetch('/health');
+        const d = await r.json();
+        if (d.status === 'ok') {
+          pill.className = 'status-pill ok';
+          text.textContent = 'API connect\u00e9e';
+        } else {
+          pill.className = 'status-pill';
+          text.textContent = 'Erreur';
+        }
+      } catch {
+        pill.className = 'status-pill';
+        text.textContent = 'API inaccessible';
+      }
+    }
+
+    function fmtDate(s) {
+      const d = new Date(s + 'T00:00:00');
+      return d.toLocaleDateString('fr-FR', { day: 'numeric', month: 'short', year: 'numeric' });
+    }
+
+    async function loadWeights() {
+      try {
+        const r = await fetch(API + '/weights');
+        const data = await r.json();
+        const box = document.getElementById('content');
+
+        if (!data.length) {
+          box.innerHTML =
+            '<div class="empty-state">' +
+              '<div class="icon">&#9878;</div>' +
+              '<p>Aucun enregistrement pour le moment.<br>Ajoutez votre <strong>premier poids</strong> ci-dessus.</p>' +
+            '</div>';
+          return;
+        }
+
+        let html = '<table><thead><tr>' +
+          '<th>Date</th><th>Poids</th><th>Variation</th><th>Actions</th>' +
+          '</tr></thead><tbody>';
+
+        data.forEach(function(w, i) {
+          var diffHtml = '<span class="diff diff-flat">&mdash;</span>';
+          if (i < data.length - 1) {
+            var d = (w.weight - data[i + 1].weight).toFixed(1);
+            if (d > 0) diffHtml = '<span class="diff diff-up">+' + d + '</span>';
+            else if (d < 0) diffHtml = '<span class="diff diff-down">' + d + '</span>';
+            else diffHtml = '<span class="diff diff-flat">0</span>';
+          }
+
+          if (editingId === w.id) {
+            html += '<tr>' +
+              '<td><input type="date" class="edit-input" id="eDate" value="' + w.date + '"/></td>' +
+              '<td><input type="number" class="edit-input" id="eWeight" value="' + w.weight + '" step="0.1" style="width:80px;text-align:center"/></td>' +
+              '<td>' + diffHtml + '</td>' +
+              '<td><div class="actions">' +
+                '<button class="btn-save" onclick="saveEdit(' + w.id + ')">OK</button>' +
+                '<button class="btn-cancel" onclick="cancelEdit()">Annuler</button>' +
+              '</div></td></tr>';
+          } else {
+            html += '<tr>' +
+              '<td class="date-cell">' + fmtDate(w.date) + '</td>' +
+              '<td class="weight-cell">' + w.weight.toFixed(1) + ' kg</td>' +
+              '<td>' + diffHtml + '</td>' +
+              '<td><div class="actions">' +
+                '<button class="btn-icon" onclick="startEdit(' + w.id + ')">Modifier</button>' +
+                '<button class="btn-icon delete" onclick="del(' + w.id + ')">Supprimer</button>' +
+              '</div></td></tr>';
+          }
+        });
+
+        html += '</tbody></table>';
+        box.innerHTML = html;
+      } catch {
+        document.getElementById('content').innerHTML =
+          '<div class="empty-state"><p>Impossible de charger les donn\u00e9es.</p></div>';
+      }
+    }
+
+    async function addWeight() {
+      var w = parseFloat(document.getElementById('weightInput').value);
+      var d = document.getElementById('dateInput').value;
+      if (!w || !d) return;
+      await fetch(API + '/weights', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ weight: w, date: d })
+      });
+      document.getElementById('weightInput').value = '';
+      document.getElementById('dateInput').value = new Date().toISOString().split('T')[0];
+      loadWeights();
+    }
+
+    function startEdit(id) { editingId = id; loadWeights(); }
+    function cancelEdit() { editingId = null; loadWeights(); }
+
+    async function saveEdit(id) {
+      var w = parseFloat(document.getElementById('eWeight').value);
+      var d = document.getElementById('eDate').value;
+      if (!w || !d) return;
+      await fetch(API + '/weights/' + id, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ weight: w, date: d })
+      });
+      editingId = null;
+      loadWeights();
+    }
+
+    async function del(id) {
+      if (!confirm('Supprimer cet enregistrement ?')) return;
+      await fetch(API + '/weights/' + id, { method: 'DELETE' });
+      loadWeights();
+    }
+
+    document.getElementById('weightInput').addEventListener('keydown', function(e) {
+      if (e.key === 'Enter') addWeight();
+    });
+
+    checkHealth();
+    loadWeights();
+    setInterval(checkHealth, 30000);
+  </script>
+</body>
+</html>
