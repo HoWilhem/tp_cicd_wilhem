@@ -4,6 +4,10 @@ Application full stack **Frontend (Nginx) + Backend (Node.js/Express)** conteneu
 
 L'application permet d'enregistrer son poids avec la date, de modifier et supprimer des entrées. Les données sont stockées en mémoire (pas de base de données).
 
+**Application en ligne :** http://51.120.124.68:30080/
+
+**Repository GitHub :** https://github.com/HoWilhem/tp_cicd_wilhem.git
+
 ---
 
 ## Architecture
@@ -60,8 +64,8 @@ tp-cicd/
 ## Partie 1 — Lancer en local avec Docker Compose
 
 ```bash
-git clone https://github.com/VOTRE_USERNAME/tp-cicd.git
-cd tp-cicd
+git clone https://github.com/HoWilhem/tp_cicd_wilhem.git
+cd tp_cicd_wilhem
 
 docker-compose up --build -d
 
@@ -93,26 +97,40 @@ docker-compose down
 
 ---
 
-## Partie 2 — Configuration de la VM Cloud
+## Partie 2 — Configuration de la VM Cloud (Azure)
 
-### Créer une VM Ubuntu 22.04+ (Azure, AWS, GCP...)
+### VM créée sur Azure
 
-**Ports à ouvrir :**
+| Paramètre     | Valeur                  |
+|----------------|------------------------|
+| OS             | Ubuntu 24.04 LTS       |
+| Taille         | Standard_B2s           |
+| IP publique    | 51.120.124.68          |
+| Utilisateur    | wilhem                 |
+
+### Ports ouverts dans le NSG Azure
 
 | Port  | Usage                  |
 |-------|------------------------|
 | 22    | SSH                    |
-| 80    | Frontend (Compose)     |
-| 30080 | Frontend (Kubernetes)  |
+| 80    | HTTP                   |
+| 30080 | Kubernetes NodePort    |
 
-### Installer Docker + K3s
+### Installation Docker + K3s
 
 ```bash
-ssh user@IP_VM
-chmod +x setup-vm.sh
-sudo ./setup-vm.sh
-exit
-ssh user@IP_VM
+ssh -i "TPDocker_key.pem" wilhem@51.120.124.68
+
+# Docker
+sudo apt-get update && sudo apt-get install -y docker-ce docker-ce-cli containerd.io docker-compose-plugin
+sudo usermod -aG docker wilhem
+
+# K3s
+curl -sfL https://get.k3s.io | sudo sh -
+sudo chmod 644 /etc/rancher/k3s/k3s.yaml
+mkdir -p ~/.kube && sudo cp /etc/rancher/k3s/k3s.yaml ~/.kube/config
+
+# Vérifier
 docker --version
 kubectl get nodes
 ```
@@ -121,31 +139,35 @@ kubectl get nodes
 
 ## Partie 3 — Déploiement Kubernetes
 
-### Préparer les images
+### Build et push des images
 
 ```bash
-sed -i 's/YOUR_DOCKERHUB_USERNAME/votre_username/g' k8s/backend.yaml k8s/frontend.yaml
-
 docker login
-docker build -t votre_username/weight-tracker-backend:latest ./backend
-docker push votre_username/weight-tracker-backend:latest
-docker build -t votre_username/weight-tracker-frontend:latest ./frontend
-docker push votre_username/weight-tracker-frontend:latest
+
+docker build -t 88wiwi/tp-cicd-backend:latest ./backend
+docker push 88wiwi/tp-cicd-backend:latest
+
+docker build -t 88wiwi/tp-cicd-frontend:latest ./frontend
+docker push 88wiwi/tp-cicd-frontend:latest
 ```
 
-### Déployer
+### Déployer sur la VM
 
 ```bash
-kubectl apply -f k8s/namespace.yaml
-kubectl apply -f k8s/configmap.yaml
-kubectl apply -f k8s/backend.yaml
-kubectl apply -f k8s/frontend.yaml
+# Copier les manifests
+scp -i "TPDocker_key.pem" -r k8s wilhem@51.120.124.68:~/
 
-kubectl get pods -n taskmanager
-kubectl get svc -n taskmanager
+# Sur la VM
+kubectl apply -f ~/k8s/namespace.yaml
+kubectl apply -f ~/k8s/configmap.yaml
+kubectl apply -f ~/k8s/backend.yaml
+kubectl apply -f ~/k8s/frontend.yaml
+
+kubectl get pods -n tpcicd
+kubectl get svc -n tpcicd
 ```
 
-Application accessible sur : **http://IP_VM:30080**
+Application accessible sur : **http://51.120.124.68:30080**
 
 ---
 
@@ -162,25 +184,17 @@ git push
        └─ kubectl apply + rollout restart
 ```
 
-### Secrets GitHub à configurer
+### Secrets GitHub configurés
 
 Settings → Secrets and variables → Actions :
 
-| Secret            | Valeur                          |
+| Secret            | Description                     |
 |-------------------|---------------------------------|
-| `DOCKER_USERNAME` | Username Docker Hub             |
-| `DOCKER_PASSWORD` | Password / token Docker Hub     |
-| `VM_HOST`         | IP publique de la VM            |
-| `VM_USER`         | Utilisateur SSH                 |
-| `VM_SSH_KEY`      | Contenu de la clé privée SSH    |
-
-### Générer une clé SSH
-
-```bash
-ssh-keygen -t ed25519 -f ~/.ssh/deploy_key -N ""
-ssh-copy-id -i ~/.ssh/deploy_key.pub user@IP_VM
-cat ~/.ssh/deploy_key    # → copier dans VM_SSH_KEY
-```
+| `DOCKER_USERNAME` | 88wiwi                          |
+| `DOCKER_PASSWORD` | Token Docker Hub                |
+| `VM_HOST`         | 51.120.124.68                   |
+| `VM_USER`         | wilhem                          |
+| `VM_SSH_KEY`      | Clé privée SSH de déploiement   |
 
 ---
 
